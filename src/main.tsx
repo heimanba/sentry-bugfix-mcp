@@ -16,6 +16,19 @@ Sentry.init({
   _experiments: {
     enableLogs: true,
   },
+  beforeSend(event, hint) {
+    const error = hint.originalException as Error;
+    const testErrorMessages = [
+      "Cannot read properties of null (reading 'property')",
+      '未处理的 Promise 拒绝',
+      '这是一个测试错误'
+    ];
+
+    if (error && error.message && testErrorMessages.includes(error.message)) {
+      return null; // Discard the event
+    }
+    return event; // Send other events
+  }
 });
 
 // 获取 Sentry logger
