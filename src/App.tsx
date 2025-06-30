@@ -7,20 +7,6 @@ import './App.css'
 // 获取 Sentry logger
 const { logger } = Sentry;
 
-// 使用 Sentry 包装的错误边界组件
-const SentryRouteErrorBoundary = Sentry.withErrorBoundary(
-  ({ children }) => children,
-  {
-    fallback: (
-      <div className="error-boundary">
-        <h2>出错了！</h2>
-        <p>应用遇到了一个错误，已经向开发团队报告。</p>
-        <button onClick={() => window.location.reload()}>刷新页面</button>
-      </div>
-    ),
-  }
-);
-
 // 一个会抛出错误的函数
 const throwError = () => {
   throw new Error('这是一个测试错误');
@@ -37,28 +23,10 @@ const causeUnhandledRejection = () => {
 
 // 模拟 API 调用的函数
 const fetchUserData = async (userId: string) => {
-  return Sentry.startSpan(
-    {
-      op: "http.client",
-      name: `GET /api/users/${userId}`,
-    },
-    async () => {
-      try {
-        // 模拟 API 调用失败
-        if (Math.random() > 0.5) {
-          throw new Error(`获取用户数据失败: ${userId}`);
-        }
-        
-        // 模拟 API 调用成功
-        return { id: userId, name: '测试用户' };
-      } catch (error) {
-        // 捕获并上报错误
-        Sentry.captureException(error);
-        logger.error("API 调用失败", { userId });
-        throw error;
-      }
-    },
-  );
+    // 正确：先 await fetch，再 await json()
+  const response = await fetch(`https://api.example.com/user/${userId}`);
+  const data = await response.json();
+  console.log(data.userList);
 };
 
 function App() {
@@ -86,22 +54,22 @@ function App() {
 
   // 触发一个捕获的错误
   const handleCaughtError = () => {
-    try {
+    // try {
       // 尝试访问一个不存在的属性
       const obj = null;
       // @ts-expect-error - 故意触发错误
       console.log(obj.property);
-    } catch (err: unknown) {
-      // 捕获并上报错误
-      Sentry.captureException(err);
-      setError('捕获到一个错误并已上报到 Sentry');
+    // } catch (err: unknown) {
+    //   // 捕获并上报错误
+    //   Sentry.captureException(err);
+    //   setError('捕获到一个错误并已上报到 Sentry');
       
-      // 记录错误日志
-      logger.error("捕获到一个错误", { error: String(err) });
+    //   // 记录错误日志
+    //   logger.error("捕获到一个错误", { error: String(err) });
       
-      // 3秒后清除错误消息
-      setTimeout(() => setError(null), 3000);
-    }
+    //   // 3秒后清除错误消息
+    //   setTimeout(() => setError(null), 3000);
+    // }
   };
 
   // 触发一个未捕获的错误
@@ -132,7 +100,7 @@ function App() {
   };
 
   return (
-    <SentryRouteErrorBoundary>
+    <>
       <div>
         <a href="https://vite.dev" target="_blank">
           <img src={viteLogo} className="logo" alt="Vite logo" />
@@ -178,7 +146,7 @@ function App() {
       <p className="read-the-docs">
         点击 Vite 和 React 图标了解更多
       </p>
-    </SentryRouteErrorBoundary>
+    </>
   )
 }
 
